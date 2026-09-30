@@ -55,6 +55,7 @@ can_i_reach_endpoints:
   - {name: syslog,     host: 10.40.0.20,       port: 514,  protocol: udp}
   - {name: ntp,        host: 10.40.0.10,       port: 123,  protocol: udp, expect_reply: true}
   - {name: api-health, host: api.corp.example, port: 443,  path: /healthz, status_codes: [200]}
+  - {name: no-rdp-dmz, host: 10.60.0.5,        port: 3389, expect: unreachable}   # must be blocked
 can_i_reach_dns_servers: [10.40.0.10, 10.40.0.11]
 can_i_reach_dns_queries:
   - {name: api.corp.example, expected_values: [10.40.3.20]}
@@ -82,6 +83,10 @@ package repositories. The full catalog is documented in
 `checks` (an inline map) is merged over the file per key, and the module
 sets two keys itself: `can_i_reach_fail_on` from `fail_on`
 (`fail` | `warn` | `never`) and `can_i_reach_report_path`.
+
+`expect: unreachable` inverts an entry: it passes only when nothing
+answers, which is how a VLAN's *negative* rules (no RDP into the DMZ,
+no ping to management) are proven from the inside.
 
 Two semantics worth knowing before reading a report:
 
