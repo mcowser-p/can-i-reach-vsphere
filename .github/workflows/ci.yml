@@ -70,6 +70,11 @@ jobs:
         with:
           scandir: ./modules/cloud-init/scripts
 
+      - name: shellcheck the repo scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: ./.github/rulesets
+
       - uses: terraform-linters/setup-tflint@v4
         with:
           tflint_version: latest

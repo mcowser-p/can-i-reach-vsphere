@@ -197,6 +197,15 @@ An end-to-end run needs a real platform: copy the example's
 `terraform.tfvars.example` to `terraform.tfvars`, fill it in, then
 `make -C examples/vsphere preflight` (or `examples/aws`).
 
+## Repository settings
+
+Branch protection for `main` is versioned in
+[`.github/rulesets/`](.github/rulesets) as GitHub ruleset JSON (no
+deletion, no force-push, `lint`, `tofu` and `commit-messages` checks
+required). GitHub does not apply it from the file by itself — run
+`.github/rulesets/apply.sh` as a repo admin after cloning to a new org
+or editing the JSON; it creates or updates the ruleset by name.
+
 ## Releasing
 
 semantic-release on `main` with the angular preset (scoped conventional
