@@ -4,8 +4,7 @@ output "vm_id" {
 }
 
 output "vm_name" {
-  description = "Name of the test VM."
-  value       = vsphere_virtual_machine.this.name
+  value = vsphere_virtual_machine.this.name
 }
 
 output "vm_ip" {
@@ -14,8 +13,7 @@ output "vm_ip" {
 }
 
 output "report_path" {
-  description = "Where the YAML report lives inside the guest."
-  value       = var.report_path
+  value = var.report_path
 }
 
 output "guestinfo_command" {
@@ -23,17 +21,19 @@ output "guestinfo_command" {
   value       = "govc vm.info -e -json '${var.vm_name}' | jq -r '.virtualMachines[0].config.extraConfig[] | select(.key | startswith(\"guestinfo.can_i_reach.\")) | \"\\(.key)=\\(.value)\"'"
 }
 
+output "checks" {
+  description = "The merged suite as written into the guest."
+  value       = module.cloud_init.checks
+}
+
 output "cloud_init_userdata" {
-  description = "The rendered #cloud-config, for inspection and tests."
-  value       = local.userdata
+  value = module.cloud_init.user_data
 }
 
 output "cloud_init_metadata" {
-  description = "The rendered cloud-init metadata (hostname + network), for inspection and tests."
-  value       = local.metadata
+  value = local.metadata
 }
 
-output "checks" {
-  description = "The merged suite as written to /etc/can-i-reach/checks.yml in the guest."
-  value       = local.checks
+output "verdict_enabled" {
+  value = module.verdict.enabled
 }

@@ -1,13 +1,8 @@
 locals {
-  hostname  = var.hostname != "" ? var.hostname : var.vm_name
   static_ip = var.ipv4_address != ""
 
-  # --- The suite: file first, inline over it, policy last ---
-  # (list comprehensions instead of conditionals: object branches of a
-  # conditional must share a type, and a suite has whatever keys it has)
+  # --- The suite: module proxy defaults < file < inline < policy ---
   checks_from_file = merge([for f in compact([var.checks_file]) : yamldecode(file(f))]...)
-  # Module-level proxy settings sit UNDER the file: a suite that sets
-  # can_i_reach_proxy / can_i_reach_no_proxy itself keeps its own values.
   proxy_defaults = merge(
     [for p in(var.proxy_for_checks ? compact([var.proxy_url]) : []) : { can_i_reach_proxy = p }]...
   )
@@ -27,11 +22,12 @@ locals {
   policy_keys = [
     "can_i_reach_fail_on", "can_i_reach_report_path", "can_i_reach_fail_fast",
     "can_i_reach_timeout", "can_i_reach_tries", "can_i_reach_checks", "can_i_reach_remediate",
+    "can_i_reach_proxy", "can_i_reach_no_proxy",
   ]
-  # Keys that actually describe something to test.
   check_keys = [for k in keys(local.checks) : k if startswith(k, "can_i_reach_") && !contains(local.policy_keys, k)]
+  suite_hash = substr(sha256(yamlencode(local.checks)), 0, 12)
 
-  # --- Guest network (cloud-init network config v2) ---
+  # --- Network config v2 (used by platforms that hand the guest its network) ---
   nic_pieces = concat(
     [for m in compact([var.mac_address]) : { match = { macaddress = lower(m) } }],
     [for i in(var.mac_address == "" ? [1] : []) : { match = { name = "e*" } }],
@@ -45,20 +41,10 @@ locals {
       )...)
     }],
   )
-  nic = merge(local.nic_pieces...)
-
-  # A new suite means a new instance-id, so cloud-init runs again on the
-  # next boot instead of treating the VM as already provisioned.
-  instance_id = "${var.vm_name}-${substr(sha256(yamlencode(local.checks)), 0, 12)}"
-
-  metadata = yamlencode({
-    "instance-id"    = local.instance_id
-    "local-hostname" = local.hostname
-    network = {
-      version   = 2
-      ethernets = { primary = local.nic }
-    }
-  })
+  network_config = {
+    version   = 2
+    ethernets = { primary = merge(local.nic_pieces...) }
+  }
 
   guest_env = join("\n", [
     "VENV=/opt/can-i-reach/venv",
@@ -84,8 +70,8 @@ locals {
     roles        = ["mcowser_p.can_i_reach.can_i_reach"]
   }])
 
-  userdata = join("\n", ["#cloud-config", yamlencode({
-    hostname         = local.hostname
+  user_data = join("\n", ["#cloud-config", yamlencode({
+    hostname         = var.hostname
     manage_etc_hosts = true
     ssh_pwauth       = false
     users = [{
@@ -109,6 +95,12 @@ locals {
     )
     final_message = "can-i-reach: boot-time run finished after $UPTIME seconds"
   })])
+}
 
-  vm_ip = local.static_ip ? split("/", var.ipv4_address)[0] : vsphere_virtual_machine.this.default_ip_address
+# A guest payload with nothing to test is a misconfiguration, not a run.
+check "suite_not_empty" {
+  assert {
+    condition     = length(local.check_keys) > 0
+    error_message = "The check suite is empty: checks_file/checks must define at least one can_i_reach_* list (e.g. can_i_reach_endpoints)."
+  }
 }

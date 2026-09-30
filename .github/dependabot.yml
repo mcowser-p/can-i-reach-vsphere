@@ -20,8 +20,10 @@ updates:
 
   - package-ecosystem: terraform
     directories:
-      - /
-      - /examples/basic
+      - /modules/vsphere
+      - /modules/aws
+      - /examples/vsphere
+      - /examples/aws
     schedule:
       interval: weekly
     commit-message:

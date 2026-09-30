@@ -1,3 +1,35 @@
+locals {
+  hostname = var.hostname != "" ? var.hostname : var.vm_name
+}
+
+module "cloud_init" {
+  source = "../cloud-init"
+
+  hostname       = local.hostname
+  ssh_user       = var.ssh_user
+  ssh_public_key = var.ssh_public_key
+
+  ipv4_address = var.ipv4_address
+  ipv4_gateway = var.ipv4_gateway
+  dns_servers  = var.dns_servers
+  dns_search   = var.dns_search
+  mac_address  = var.mac_address
+
+  checks_file = var.checks_file
+  checks      = var.checks
+  fail_on     = var.fail_on
+  report_path = var.report_path
+
+  install_tooling      = var.install_tooling
+  ansible_core_version = var.ansible_core_version
+  collection_source    = var.collection_source
+  pip_index_url        = var.pip_index_url
+
+  proxy_url        = var.proxy_url
+  no_proxy         = var.no_proxy
+  proxy_for_checks = var.proxy_for_checks
+}
+
 data "vsphere_datacenter" "this" {
   name = var.datacenter
 }
@@ -27,6 +59,18 @@ data "vsphere_network" "vlan" {
 data "vsphere_virtual_machine" "template" {
   name          = var.template
   datacenter_id = data.vsphere_datacenter.this.id
+}
+
+locals {
+  # A new suite means a new instance-id, so cloud-init runs again on the
+  # next boot instead of treating the VM as already provisioned.
+  instance_id = "${var.vm_name}-${module.cloud_init.suite_hash}"
+
+  metadata = yamlencode({
+    "instance-id"    = local.instance_id
+    "local-hostname" = local.hostname
+    network          = module.cloud_init.network_config
+  })
 }
 
 resource "vsphere_virtual_machine" "this" {
@@ -64,7 +108,7 @@ resource "vsphere_virtual_machine" "this" {
   extra_config = {
     "guestinfo.metadata"          = base64encode(local.metadata)
     "guestinfo.metadata.encoding" = "base64"
-    "guestinfo.userdata"          = base64encode(local.userdata)
+    "guestinfo.userdata"          = base64encode(module.cloud_init.user_data)
     "guestinfo.userdata.encoding" = "base64"
   }
 
@@ -72,35 +116,21 @@ resource "vsphere_virtual_machine" "this" {
   # legitimately have none. An IP reported by VMware Tools is enough.
   wait_for_guest_net_routable = false
   wait_for_guest_net_timeout  = var.guest_ip_timeout
-
-  lifecycle {
-    precondition {
-      condition     = length(local.check_keys) > 0
-      error_message = "The check suite is empty: checks_file/checks must define at least one can_i_reach_* list (e.g. can_i_reach_endpoints)."
-    }
-  }
 }
 
-# Blocks until the boot-time run has finished, replays its log into the
-# apply output, and fails the apply with the suite's exit code.
-resource "terraform_data" "verdict" {
-  count = var.wait_for_result ? 1 : 0
+locals {
+  vm_ip = coalesce(module.cloud_init.static_ip, vsphere_virtual_machine.this.default_ip_address)
+}
 
-  triggers_replace = [vsphere_virtual_machine.this.id, local.instance_id]
+module "verdict" {
+  source = "../verdict"
 
-  connection {
-    type        = "ssh"
-    host        = local.vm_ip
-    port        = var.ssh_port
-    user        = var.ssh_user
-    private_key = var.ssh_private_key != "" ? var.ssh_private_key : null
-    agent       = var.ssh_private_key == ""
-    timeout     = "10m"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo /usr/local/bin/can-i-reach-wait ${var.result_timeout_seconds}",
-    ]
-  }
+  enabled                = var.wait_for_result
+  host                   = local.vm_ip
+  instance_id            = vsphere_virtual_machine.this.id
+  suite_hash             = module.cloud_init.suite_hash
+  ssh_user               = var.ssh_user
+  ssh_port               = var.ssh_port
+  ssh_private_key        = var.ssh_private_key
+  result_timeout_seconds = var.result_timeout_seconds
 }
