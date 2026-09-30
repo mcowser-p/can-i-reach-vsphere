@@ -1,0 +1,5 @@
+region            = "eu-west-1"
+subnet_id         = "subnet-0123456789abcdef0"
+ssh_ingress_cidrs = ["10.0.0.0/8"]
+vm_name           = "can-i-reach-app-subnet"
+ssh_public_key    = "ssh-ed25519 AAAA... preflight"

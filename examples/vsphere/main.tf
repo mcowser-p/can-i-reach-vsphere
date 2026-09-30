@@ -1,6 +1,7 @@
-# Deploys one throwaway VM onto a VLAN and proves, from inside that VM,
-# that everything in checks.yml is reachable. `tofu apply` fails when a
-# check fails; `tofu destroy` removes the VM. See ../../README.md.
+# Deploys one throwaway VM onto a vSphere port group and proves, from
+# inside that VM, that everything in checks.yml is reachable (and that
+# everything marked expect: unreachable is blocked). `tofu apply` fails
+# when a check fails; `tofu destroy` removes the VM.
 
 provider "vsphere" {
   vsphere_server       = var.vsphere_server
@@ -10,9 +11,9 @@ provider "vsphere" {
 }
 
 module "preflight" {
-  source = "../../"
+  source = "../../modules/vsphere"
   # From a release instead:
-  # source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git?ref=v1.0.0"
+  # source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git//modules/vsphere?ref=v2"
 
   datacenter = var.datacenter
   cluster    = var.cluster

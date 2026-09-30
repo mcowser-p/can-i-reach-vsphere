@@ -22,20 +22,34 @@ jobs:
       - name: Format
         run: tofu fmt -check -recursive -diff
 
-      - name: Validate the module
+      # Every platform module must expose the same common inputs: that
+      # is what makes them drop-in replacements for each other.
+      - name: Drop-in contract (common.tf identical across platforms)
         run: |
-          tofu init -backend=false -input=false
-          tofu validate
+          set -e
+          ref=modules/vsphere/common.tf
+          for f in modules/*/common.tf; do
+            diff -u "$ref" "$f"
+          done
 
-      # Plan-only tests against a mocked vSphere provider — no vCenter.
-      - name: Test the module
-        run: tofu test
-
-      - name: Validate the example
-        working-directory: examples/basic
+      # Plan-only tests: cloud-init renders with no provider, the
+      # platform modules run against mocked providers.
+      - name: Validate and test every module
         run: |
-          tofu init -backend=false -input=false
-          tofu validate
+          set -e
+          for m in modules/cloud-init modules/verdict modules/vsphere modules/aws; do
+            echo "== $m"
+            (cd "$m" && tofu init -backend=false -input=false >/dev/null && tofu validate)
+            if [ -d "$m/tests" ]; then (cd "$m" && tofu test); fi
+          done
+
+      - name: Validate the examples
+        run: |
+          set -e
+          for e in examples/*/; do
+            echo "== $e"
+            (cd "$e" && tofu init -backend=false -input=false >/dev/null && tofu validate)
+          done
 
   lint:
     runs-on: ubuntu-latest
@@ -54,7 +68,7 @@ jobs:
       - name: shellcheck the guest scripts
         uses: ludeeus/action-shellcheck@2.0.0
         with:
-          scandir: ./scripts
+          scandir: ./modules/cloud-init/scripts
 
       - uses: terraform-linters/setup-tflint@v4
         with:

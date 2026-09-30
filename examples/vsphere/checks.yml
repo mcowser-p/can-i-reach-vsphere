@@ -1,0 +1,37 @@
+---
+# The network resources this VLAN must (and must not) reach, tested from
+# the VM itself. Every key is a can-i-reach variable — see
+# https://github.com/mcowser-p/can-i-reach for the full catalog.
+
+can_i_reach_timeout: 5
+
+can_i_reach_endpoints:
+  # icmp — the gateway answers ping
+  - {name: gateway, host: 10.40.1.1, protocol: icmp}
+
+  # tcp — a plain connect (protocol defaults to tcp)
+  - {name: sql, host: 10.40.2.11, port: 1433}
+  - {name: ldap, host: dc1.corp.example, port: 636}
+
+  # udp — a datagram. Silence is `warn` (open|filtered) unless
+  # expect_reply is set, because UDP cannot prove more than that.
+  - {name: syslog, host: 10.40.0.20, port: 514, protocol: udp}
+  - {name: ntp-direct, host: 10.40.0.10, port: 123, protocol: udp, expect_reply: true}
+
+  # https — a real request with an expected status
+  - {name: api-health, host: api.corp.example, port: 443, path: /healthz, status_codes: [200]}
+  - {name: internal-ui, host: 10.40.3.5, port: 8443, path: /, status_codes: [200, 302], validate_certs: false}
+
+  # blocked — segmentation is proven from the inside too: these must NOT answer
+  - {name: no-rdp-to-dmz, host: 10.60.0.5, port: 3389, expect: unreachable}
+  - {name: no-ping-mgmt, host: 10.99.0.1, protocol: icmp, expect: unreachable}
+  - {name: no-vcenter-ui, host: vcenter.corp.example, port: 443, path: /, expect: unreachable}
+
+# dns — resolve through the system resolver and directly against each server
+can_i_reach_dns_servers: [10.40.0.10, 10.40.0.11]
+can_i_reach_dns_queries:
+  - {name: api.corp.example, expected_values: [10.40.3.20]}
+
+# The apt/dnf metadata refresh is a real check of repo reachability, but
+# on a locked-down VLAN it is usually not what is being tested.
+can_i_reach_repo_enabled: false

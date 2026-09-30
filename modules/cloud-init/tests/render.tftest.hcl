@@ -1,41 +1,27 @@
-# Plan-only tests against a mocked vSphere provider: no vCenter needed.
-mock_provider "vsphere" {
-  mock_data "vsphere_virtual_machine" {
-    defaults = {
-      guest_id                = "ubuntu64Guest"
-      scsi_type               = "pvscsi"
-      network_interface_types = ["vmxnet3"]
-      disks                   = [{ label = "disk0", unit_number = 0, size = 20, thin_provisioned = true, eagerly_scrub = false }]
-    }
-  }
-}
+# Pure rendering tests — no provider involved.
 
 variables {
-  datacenter     = "dc1"
-  cluster        = "cluster1"
-  datastore      = "ds1"
-  network        = "vlan-40-app"
-  template       = "ubuntu-24.04-cloudinit"
+  hostname       = "preflight-test"
   ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITESTKEY test@example"
   checks_file    = "tests/fixtures/checks.yml"
 }
 
-run "dhcp_plan" {
+run "dhcp" {
   command = plan
 
   assert {
-    condition     = vsphere_virtual_machine.this.network_interface[0].network_id == data.vsphere_network.vlan.id
-    error_message = "the VM must attach to the VLAN port group"
-  }
-
-  assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.dhcp4 == true
+    condition     = output.network_config.ethernets.primary.dhcp4 == true
     error_message = "no static address given, the guest should use DHCP"
   }
 
   assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.match.name == "e*"
+    condition     = output.network_config.ethernets.primary.match.name == "e*"
     error_message = "without a fixed MAC the interface is matched by name"
+  }
+
+  assert {
+    condition     = output.static_ip == null
+    error_message = "static_ip must be null under DHCP"
   }
 
   assert {
@@ -49,27 +35,27 @@ run "dhcp_plan" {
   }
 
   assert {
-    condition     = startswith(output.cloud_init_userdata, "#cloud-config\n")
-    error_message = "userdata must be a cloud-config document"
+    condition     = startswith(output.user_data, "#cloud-config\n")
+    error_message = "user_data must be a cloud-config document"
   }
 
   assert {
-    condition     = flatten(yamldecode(trimprefix(output.cloud_init_userdata, "#cloud-config\n")).runcmd) == ["/usr/local/bin/can-i-reach-install", "/usr/local/bin/can-i-reach-run"]
+    condition     = flatten(yamldecode(trimprefix(output.user_data, "#cloud-config\n")).runcmd) == ["/usr/local/bin/can-i-reach-install", "/usr/local/bin/can-i-reach-run"]
     error_message = "install_tooling defaults to true: installer then runner"
   }
 
   assert {
-    condition     = contains([for f in yamldecode(trimprefix(output.cloud_init_userdata, "#cloud-config\n")).write_files : f.path], "/etc/can-i-reach/checks.yml")
+    condition     = contains([for f in yamldecode(trimprefix(output.user_data, "#cloud-config\n")).write_files : f.path], "/etc/can-i-reach/checks.yml")
     error_message = "the suite file must be written into the guest"
   }
 
   assert {
-    condition     = length(terraform_data.verdict) == 1
-    error_message = "wait_for_result defaults to true"
+    condition     = length(output.suite_hash) == 12
+    error_message = "suite_hash is a 12-character digest"
   }
 }
 
-run "static_ip_plan" {
+run "static_ip" {
   command = plan
 
   variables {
@@ -79,7 +65,6 @@ run "static_ip_plan" {
     dns_search      = ["corp.example"]
     mac_address     = "00:50:56:AB:CD:EF"
     install_tooling = false
-    wait_for_result = false
     checks_file     = ""
     checks = {
       can_i_reach_endpoints = [{ name = "inline-tcp", host = "10.40.2.11", port = 1433 }]
@@ -87,43 +72,38 @@ run "static_ip_plan" {
   }
 
   assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.addresses == ["10.40.1.50/24"]
+    condition     = jsonencode(output.network_config.ethernets.primary.addresses) == jsonencode(["10.40.1.50/24"])
     error_message = "the static address must land in the network config"
   }
 
   assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.routes[0].via == "10.40.1.1"
+    condition     = output.network_config.ethernets.primary.routes[0].via == "10.40.1.1"
     error_message = "the default route must land in the network config"
   }
 
   assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.nameservers.search == ["corp.example"]
+    condition     = jsonencode(output.network_config.ethernets.primary.nameservers.search) == jsonencode(["corp.example"])
     error_message = "DNS search domains must land in the network config"
   }
 
   assert {
-    condition     = yamldecode(output.cloud_init_metadata).network.ethernets.primary.match.macaddress == "00:50:56:ab:cd:ef"
+    condition     = output.network_config.ethernets.primary.match.macaddress == "00:50:56:ab:cd:ef"
     error_message = "with a fixed MAC the interface is matched by MAC"
   }
 
   assert {
-    condition     = output.vm_ip == "10.40.1.50"
-    error_message = "the verdict is read from the static address"
+    condition     = output.static_ip == "10.40.1.50"
+    error_message = "static_ip is the address without its prefix"
   }
 
   assert {
-    condition     = flatten(yamldecode(trimprefix(output.cloud_init_userdata, "#cloud-config\n")).runcmd) == ["/usr/local/bin/can-i-reach-run"]
+    condition     = flatten(yamldecode(trimprefix(output.user_data, "#cloud-config\n")).runcmd) == ["/usr/local/bin/can-i-reach-run"]
     error_message = "install_tooling=false must skip the installer"
   }
 
   assert {
     condition     = output.checks.can_i_reach_endpoints[0].name == "inline-tcp"
     error_message = "inline checks must be written"
-  }
-
-  assert {
-    condition     = length(terraform_data.verdict) == 0
-    error_message = "wait_for_result=false must not create the remote-exec step"
   }
 }
 
@@ -167,7 +147,7 @@ run "proxy_defaults_under_the_suite" {
   }
 
   assert {
-    condition     = strcontains(output.cloud_init_userdata, "PROXY_URL=http://proxy.corp.example:3128")
+    condition     = strcontains(output.user_data, "PROXY_URL=http://proxy.corp.example:3128")
     error_message = "the tooling install must see the proxy"
   }
 }
@@ -208,5 +188,5 @@ run "empty_suite_is_rejected" {
     checks      = {}
   }
 
-  expect_failures = [vsphere_virtual_machine.this]
+  expect_failures = [check.suite_not_empty]
 }
