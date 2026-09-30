@@ -148,6 +148,58 @@ run "inline_overrides_file" {
   }
 }
 
+run "proxy_defaults_under_the_suite" {
+  command = plan
+
+  variables {
+    proxy_url = "http://proxy.corp.example:3128"
+    no_proxy  = ["10.40.0.0/16", ".corp.example"]
+  }
+
+  assert {
+    condition     = output.checks.can_i_reach_proxy == "http://proxy.corp.example:3128"
+    error_message = "proxy_url must become the suite's default proxy"
+  }
+
+  assert {
+    condition     = jsonencode(output.checks.can_i_reach_no_proxy) == jsonencode(["10.40.0.0/16", ".corp.example"])
+    error_message = "no_proxy must become can_i_reach_no_proxy"
+  }
+
+  assert {
+    condition     = strcontains(output.cloud_init_userdata, "PROXY_URL=http://proxy.corp.example:3128")
+    error_message = "the tooling install must see the proxy"
+  }
+}
+
+run "suite_proxy_wins_over_module_proxy" {
+  command = plan
+
+  variables {
+    proxy_url = "http://proxy.corp.example:3128"
+    checks    = { can_i_reach_proxy = "http://other.example:8080" }
+  }
+
+  assert {
+    condition     = output.checks.can_i_reach_proxy == "http://other.example:8080"
+    error_message = "a suite that sets its own proxy keeps it"
+  }
+}
+
+run "proxy_for_checks_false_keeps_suite_clean" {
+  command = plan
+
+  variables {
+    proxy_url        = "http://proxy.corp.example:3128"
+    proxy_for_checks = false
+  }
+
+  assert {
+    condition     = !contains(keys(output.checks), "can_i_reach_proxy")
+    error_message = "proxy_for_checks=false must not touch the suite"
+  }
+}
+
 run "empty_suite_is_rejected" {
   command = plan
 

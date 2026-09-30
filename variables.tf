@@ -217,6 +217,26 @@ variable "pip_index_url" {
   default     = ""
 }
 
+# --- Proxy --------------------------------------------------------------------
+
+variable "proxy_url" {
+  description = "HTTP proxy for the guest, e.g. http://proxy.corp.example:3128 (credentials allowed in the URL). Used by the first-boot tooling install (apt/dnf, pip, git) and, when proxy_for_checks is true, as the suite's default proxy for http(s) probes."
+  type        = string
+  default     = ""
+}
+
+variable "no_proxy" {
+  description = "Hosts/domains that bypass proxy_url, for the tooling install (NO_PROXY) and the suite (can_i_reach_no_proxy)."
+  type        = list(string)
+  default     = []
+}
+
+variable "proxy_for_checks" {
+  description = "Inject proxy_url as can_i_reach_proxy (default proxy for http(s) checks) unless the suite sets it itself. tcp/udp/icmp checks are never proxied."
+  type        = bool
+  default     = true
+}
+
 # --- Reading the verdict back -----------------------------------------------
 
 variable "wait_for_result" {
