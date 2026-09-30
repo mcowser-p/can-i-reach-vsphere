@@ -1,0 +1,3 @@
+# Runs on Linux, macOS and Windows alike — Git for Windows executes hooks
+# through its bundled sh, and npx resolves the same on every platform.
+npx --no -- commitlint --edit "$1"

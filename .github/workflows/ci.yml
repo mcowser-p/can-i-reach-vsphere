@@ -1,0 +1,66 @@
+---
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  tofu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.12.5"
+          tofu_wrapper: false
+
+      - name: Format
+        run: tofu fmt -check -recursive -diff
+
+      - name: Validate the module
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
+
+      # Plan-only tests against a mocked vSphere provider — no vCenter.
+      - name: Test the module
+        run: tofu test
+
+      - name: Validate the example
+        working-directory: examples/basic
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: yamllint
+        run: |
+          pip install --quiet yamllint
+          yamllint --strict .
+
+      - name: shellcheck the guest scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: ./scripts
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --format compact

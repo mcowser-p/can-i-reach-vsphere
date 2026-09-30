@@ -1,0 +1,17 @@
+vsphere_server   = "vcenter.corp.example"
+vsphere_user     = "svc-tofu@vsphere.local"
+vsphere_password = "set-me-or-use-TF_VAR_vsphere_password"
+
+datacenter = "DC1"
+cluster    = "Cluster-A"
+datastore  = "vsan-ds"
+folder     = "preflight"
+template   = "ubuntu-24.04-cloudinit"
+network    = "VLAN-40-App"
+
+vm_name      = "can-i-reach-vlan40"
+ipv4_address = "10.40.1.250/24" # or "" for DHCP
+ipv4_gateway = "10.40.1.1"
+dns_servers  = ["10.40.0.10", "10.40.0.11"]
+
+ssh_public_key = "ssh-ed25519 AAAA... preflight"

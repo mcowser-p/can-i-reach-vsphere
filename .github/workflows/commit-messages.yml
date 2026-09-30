@@ -1,0 +1,40 @@
+---
+name: Commit messages
+
+# The authoritative check: it runs on a Linux runner, so contributors on any
+# OS get the same verdict regardless of whether they installed the local hook.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  commit-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Install commitlint
+        run: npm install
+
+      # On a PR, check every commit the PR adds. On a push to main, check just
+      # the pushed commit — earlier history predates this gate.
+      - name: Lint commit messages
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$IS_PR" = "true" ]; then
+            npx commitlint --from "$PR_BASE" --to "$PR_HEAD" --verbose
+          else
+            npx commitlint --last --verbose
+          fi
