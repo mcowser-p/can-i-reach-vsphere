@@ -22,6 +22,11 @@ can_i_reach_endpoints:
   - {name: api-health, host: api.corp.example, port: 443, path: /healthz, status_codes: [200]}
   - {name: internal-ui, host: 10.40.3.5, port: 8443, path: /, status_codes: [200, 302], validate_certs: false}
 
+  # blocked — segmentation is proven from the inside too: these must NOT answer
+  - {name: no-rdp-to-dmz, host: 10.60.0.5, port: 3389, expect: unreachable}
+  - {name: no-ping-mgmt, host: 10.99.0.1, protocol: icmp, expect: unreachable}
+  - {name: no-vcenter-ui, host: vcenter.corp.example, port: 443, path: /, expect: unreachable}
+
 # dns — resolve through the system resolver and directly against each server
 can_i_reach_dns_servers: [10.40.0.10, 10.40.0.11]
 can_i_reach_dns_queries:
