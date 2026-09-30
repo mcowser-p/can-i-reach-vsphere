@@ -1,6 +1,6 @@
 // .releaserc.js — tags vX.Y.Z on main from conventional commits and
 // publishes a GitHub release. Consumers reference the module by tag:
-//   source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git?ref=v1.0.0"
+//   source = "git::https://github.com/mcowser-p/can-my-server-reach.git?ref=v1.0.0"
 module.exports = {
   branches: ["main"],
   tagFormat: `v\${version}`,

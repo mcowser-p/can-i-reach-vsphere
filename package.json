@@ -1,7 +1,7 @@
 {
-  "name": "can-i-reach-vsphere-release",
+  "name": "can-my-server-reach-release",
   "private": true,
-  "description": "Release toolchain for the can-i-reach-vsphere OpenTofu module (semantic-release)",
+  "description": "Release toolchain for the can-my-server-reach OpenTofu module (semantic-release)",
   "devDependencies": {
     "semantic-release": "25.0.9",
     "@commitlint/cli": "21.2.3",
