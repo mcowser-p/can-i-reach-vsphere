@@ -13,7 +13,7 @@ provider "vsphere" {
 module "preflight" {
   source = "../../modules/vsphere"
   # From a release instead:
-  # source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git//modules/vsphere?ref=v2"
+  # source = "git::https://github.com/mcowser-p/can-my-server-reach.git//modules/vsphere?ref=v2"
 
   datacenter = var.datacenter
   cluster    = var.cluster

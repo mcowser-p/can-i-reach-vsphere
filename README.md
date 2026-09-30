@@ -1,4 +1,4 @@
-# can-i-reach-vsphere 📡🧪
+# can-my-server-reach 📡🧪
 
 OpenTofu modules that answer one question about a network segment:
 **can a VM placed on it reach what it is supposed to reach — and nothing
@@ -48,7 +48,7 @@ mocked plan test, done. The CI contract check fails if `common.tf` drifts.
 
 ```hcl
 module "preflight" {
-  source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git//modules/vsphere?ref=v2"
+  source = "git::https://github.com/mcowser-p/can-my-server-reach.git//modules/vsphere?ref=v2"
 
   datacenter = "DC1"
   cluster    = "Cluster-A"
@@ -69,7 +69,7 @@ The same on AWS, same suite:
 
 ```hcl
 module "preflight" {
-  source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git//modules/aws?ref=v2"
+  source = "git::https://github.com/mcowser-p/can-my-server-reach.git//modules/aws?ref=v2"
 
   subnet_id      = "subnet-0123456789abcdef0"   # the subnet under test
   ssh_public_key = file("~/.ssh/id_ed25519.pub")

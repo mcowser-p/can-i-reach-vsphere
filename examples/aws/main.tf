@@ -9,7 +9,7 @@ provider "aws" {
 module "preflight" {
   source = "../../modules/aws"
   # From a release instead:
-  # source = "git::https://github.com/mcowser-p/can-i-reach-vsphere.git//modules/aws?ref=v2"
+  # source = "git::https://github.com/mcowser-p/can-my-server-reach.git//modules/aws?ref=v2"
 
   subnet_id         = var.subnet_id # the network under test
   instance_type     = "t3.small"
