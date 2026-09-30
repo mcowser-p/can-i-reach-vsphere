@@ -6,7 +6,17 @@ locals {
   # (list comprehensions instead of conditionals: object branches of a
   # conditional must share a type, and a suite has whatever keys it has)
   checks_from_file = merge([for f in compact([var.checks_file]) : yamldecode(file(f))]...)
+  # Module-level proxy settings sit UNDER the file: a suite that sets
+  # can_i_reach_proxy / can_i_reach_no_proxy itself keeps its own values.
+  proxy_defaults = merge(
+    [for p in(var.proxy_for_checks ? compact([var.proxy_url]) : []) : { can_i_reach_proxy = p }]...
+  )
+  no_proxy_defaults = merge(
+    [for i in(var.proxy_for_checks && length(var.no_proxy) > 0 ? [1] : []) : { can_i_reach_no_proxy = var.no_proxy }]...
+  )
   checks = merge(
+    local.proxy_defaults,
+    local.no_proxy_defaults,
     local.checks_from_file,
     var.checks,
     {
@@ -60,6 +70,8 @@ locals {
     "ANSIBLE_CORE_VERSION=${var.ansible_core_version}",
     "COLLECTION_SOURCE=${var.collection_source}",
     "PIP_INDEX_URL=${var.pip_index_url}",
+    "PROXY_URL=${var.proxy_url}",
+    "NO_PROXY_LIST=${join(",", var.no_proxy)}",
     "",
   ])
 

@@ -9,6 +9,15 @@ set -euo pipefail
 
 log() { echo "[can-i-reach-install] $*"; }
 
+# apt/dnf, pip and git all honour the proxy environment; nothing else
+# on the guest is reconfigured.
+if [ -n "${PROXY_URL:-}" ]; then
+  log "tooling via proxy $(sed -E 's#//[^@]*@#//***@#' <<<"$PROXY_URL")"
+  export http_proxy="$PROXY_URL" https_proxy="$PROXY_URL"
+  export HTTP_PROXY="$PROXY_URL" HTTPS_PROXY="$PROXY_URL"
+  export no_proxy="${NO_PROXY_LIST:-}" NO_PROXY="${NO_PROXY_LIST:-}"
+fi
+
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
   log "apt: python3 python3-venv git"

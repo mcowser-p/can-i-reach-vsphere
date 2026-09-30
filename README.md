@@ -116,6 +116,27 @@ govc vm.info -e -json can-i-reach-preflight \
 
 The `guestinfo_command` output prints exactly that command for the VM.
 
+## Behind a proxy
+
+```hcl
+  proxy_url = "http://proxy.corp.example:3128"   # or http://user:pass@…
+  no_proxy  = ["10.40.0.0/16", ".corp.example"]
+```
+
+`proxy_url` does two things. The first-boot tooling install (apt/dnf,
+pip, git) runs with the proxy environment set, so a VLAN whose only
+egress is a proxy can still bootstrap. And unless `proxy_for_checks =
+false`, it becomes the suite's `can_i_reach_proxy`: every http(s) check
+goes through the proxy, hosts matching `no_proxy` go direct, and an
+entry can still opt out with `proxy: false` or pick another proxy by
+name or URL. tcp, udp and icmp checks are never proxied — an HTTP proxy
+cannot carry them, so those prove the VLAN's own routing. A suite that
+sets `can_i_reach_proxy` itself keeps its value.
+
+Use `can_i_reach_proxies` (with `test_urls`) to test the proxy as a
+target in its own right, and `can_i_reach_forbidden_urls` to assert that
+direct egress is blocked.
+
 ## Template requirements
 
 - **cloud-init with the VMware datasource** and **open-vm-tools**. Ubuntu
