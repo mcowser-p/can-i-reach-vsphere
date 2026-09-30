@@ -201,8 +201,10 @@ An end-to-end run needs a real platform: copy the example's
 
 Branch protection for `main` is versioned in
 [`.github/rulesets/`](.github/rulesets) as GitHub ruleset JSON (no
-deletion, no force-push, `lint`, `tofu` and `commit-messages` checks
-required). GitHub does not apply it from the file by itself — run
+deletion, no force-push; `lint`, `tofu`, `commit-messages` and
+`release-smoke` checks required — the last one dry-runs semantic-release
+with the real config on every PR so a Dependabot bump of the release
+toolchain cannot merge broken). GitHub does not apply it from the file by itself — run
 `.github/rulesets/apply.sh` as a repo admin after cloning to a new org
 or editing the JSON; it creates or updates the ruleset by name.
 
